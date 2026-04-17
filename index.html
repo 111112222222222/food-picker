@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Food Picker</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #ff9a56, #ff6b6b);
+    min-height: 100vh;
+    color: #333;
+  }
+  .container {
+    max-width: 520px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  h1 { margin: 0 0 4px; text-align: center; }
+  .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 20px; }
+  .add-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .add-row input[type="text"]:first-child { flex: 2; min-width: 140px; }
+  .add-row input[type="text"]:nth-child(2) { flex: 3; min-width: 160px; }
+  input[type="text"] {
+    padding: 12px;
+    font-size: 15px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    outline: none;
+    width: 100%;
+  }
+  input[type="text"]:focus { border-color: #ff6b6b; }
+  button {
+    padding: 12px 16px;
+    font-size: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #ff6b6b;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: #ff5252; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  .hint { font-size: 12px; color: #999; margin-bottom: 16px; }
+  .location-box {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .location-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .location-row button { padding: 8px 12px; font-size: 13px; background: #3498db; }
+  .location-row button:hover { background: #2980b9; }
+  .location-status { flex: 1; font-size: 13px; color: #555; }
+  .radius-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+  .radius-row input[type="range"] { flex: 1; }
+  .radius-value { font-weight: 600; color: #ff6b6b; min-width: 70px; text-align: right; }
+  .pick-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    background: #2ecc71;
+    margin-bottom: 16px;
+  }
+  .pick-btn:hover { background: #27ae60; }
+  .result {
+    text-align: center;
+    padding: 20px;
+    background: #fff8e1;
+    border: 2px dashed #ffc107;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #e67e22;
+    min-height: 40px;
+  }
+  .result small { display: block; font-size: 13px; font-weight: 400; color: #888; margin-top: 4px; }
+  .result.empty { color: #bbb; font-weight: 400; font-size: 16px; font-style: italic; }
+  .wife-buttons { display: flex; gap: 8px; margin-bottom: 16px; }
+  .wife-buttons button { flex: 1; }
+  .yes-btn { background: #2ecc71; }
+  .yes-btn:hover { background: #27ae60; }
+  .no-btn { background: #e74c3c; }
+  .no-btn:hover { background: #c0392b; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+  }
+  li:last-child { border-bottom: none; }
+  li.rejected { opacity: 0.4; text-decoration: line-through; }
+  li.out-of-range { opacity: 0.5; }
+  .li-info { flex: 1; min-width: 0; }
+  .li-info .name { font-weight: 600; }
+  .li-info .meta { font-size: 12px; color: #888; }
+  .del, .retry {
+    background: transparent;
+    color: #e74c3c;
+    padding: 4px 8px;
+    font-size: 18px;
+  }
+  .del:hover { background: #fee; }
+  .retry { color: #3498db; font-size: 16px; }
+  .retry:hover { background: #eaf4fb; }
+  .retry:disabled { color: #ccc; background: transparent; }
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #666;
+  }
+  .reset {
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    padding: 4px 8px;
+  }
+  .reset:hover { background: #f0f0f0; color: #333; }
+  .empty-list { text-align: center; color: #aaa; padding: 20px; font-style: italic; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍽️ Food Picker</h1>
+    <p class="subtitle">Until the wife says yes</p>
+
+    <div class="location-box">
+      <div class="location-row">
+        <button id="locBtn">📍 Use my location</button>
+        <span class="location-status" id="locStatus">No location set</span>
+      </div>
+      <div class="radius-row">
+        <span>Radius:</span>
+        <input type="range" id="radius" min="1" max="50" step="1" value="10" />
+        <span class="radius-value" id="radiusValue">10 km</span>
+      </div>
+    </div>
+
+    <div class="add-row">
+      <input id="input" type="text" placeholder="Restaurant name" />
+      <input id="addrInput" type="text" placeholder="Address or Google Maps link" />
+      <button id="addBtn">Add</button>
+    </div>
+    <p class="hint">Paste a Google Maps link and the name + location will auto-fill.</p>
+
+    <button class="pick-btn" id="pickBtn">🎲 Pick a Restaurant</button>
+
+    <div class="result empty" id="result">No pick yet — hit the button!</div>
+
+    <div class="wife-buttons" id="wifeButtons" style="display:none;">
+      <button class="no-btn" id="noBtn">👎 She said no</button>
+      <button class="yes-btn" id="yesBtn">👍 She said yes!</button>
+    </div>
+
+    <div class="list-header">
+      <span id="listCount">0 restaurants</span>
+      <span>
+        <button class="reset" id="fixAllBtn">Fix missing locations</button>
+        <button class="reset" id="resetBtn">Reset rejections</button>
+      </span>
+    </div>
+    <ul id="list"></ul>
+  </div>
+
+<script>
+  const STORAGE_KEY = 'foodPicker.restaurants';
+  const LOC_KEY = 'foodPicker.userLocation';
+  const RADIUS_KEY = 'foodPicker.radius';
+
+  let restaurants = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let userLocation = JSON.parse(localStorage.getItem(LOC_KEY) || 'null');
+  let radiusKm = parseInt(localStorage.getItem(RADIUS_KEY) || '10', 10);
+  let currentPick = null;
+
+  const input = document.getElementById('input');
+  const addrInput = document.getElementById('addrInput');
+  const addBtn = document.getElementById('addBtn');
+  const pickBtn = document.getElementById('pickBtn');
+  const result = document.getElementById('result');
+  const list = document.getElementById('list');
+  const listCount = document.getElementById('listCount');
+  const wifeButtons = document.getElementById('wifeButtons');
+  const noBtn = document.getElementById('noBtn');
+  const yesBtn = document.getElementById('yesBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const locBtn = document.getElementById('locBtn');
+  const locStatus = document.getElementById('locStatus');
+  const radiusSlider = document.getElementById('radius');
+  const radiusValue = document.getElementById('radiusValue');
+
+  radiusSlider.value = radiusKm;
+  radiusValue.textContent = radiusKm + ' km';
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(restaurants)); }
+  function saveLoc() { localStorage.setItem(LOC_KEY, JSON.stringify(userLocation)); }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Haversine distance in km
+  function distanceKm(a, b) {
+    const R = 6371;
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLng = (b.lng - a.lng) * Math.PI / 180;
+    const lat1 = a.lat * Math.PI / 180;
+    const lat2 = b.lat * Math.PI / 180;
+    const h = Math.sin(dLat/2)**2 + Math.sin(dLng/2)**2 * Math.cos(lat1) * Math.cos(lat2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  async function geocode(address) {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('Geocode failed');
+    const data = await res.json();
+    if (!data.length) throw new Error('Address not found');
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name };
+  }
+
+  function isMapsUrl(s) {
+    return /^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|share\.google)/i.test(s.trim());
+  }
+
+  function parseMapsUrl(url) {
+    // Try to pull lat/lng and name from a full Google Maps URL
+    let lat = null, lng = null, name = null, address = null;
+
+    // Pattern: /place/NAME/@lat,lng,zoom
+    const placeMatch = url.match(/\/place\/([^/@]+)/);
+    if (placeMatch) {
+      name = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+    }
+
+    // Pattern: @lat,lng
+    const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (atMatch) {
+      lat = parseFloat(atMatch[1]);
+      lng = parseFloat(atMatch[2]);
+    }
+
+    // Pattern: !3dLAT!4dLNG (the actual place pin, more accurate than @)
+    const dMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (dMatch) {
+      lat = parseFloat(dMatch[1]);
+      lng = parseFloat(dMatch[2]);
+    }
+
+    // Pattern: ?q=lat,lng  or  ?query=lat,lng
+    const qMatch = url.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (qMatch && lat === null) {
+      lat = parseFloat(qMatch[1]);
+      lng = parseFloat(qMatch[2]);
+    }
+
+    // Pattern: ?q=Some+Address (not coords)
+    const qTextMatch = url.match(/[?&]q=([^&]+)/);
+    if (qTextMatch && !/^-?\d+\.\d+,-?\d+\.\d+$/.test(decodeURIComponent(qTextMatch[1]))) {
+      address = decodeURIComponent(qTextMatch[1].replace(/\+/g, ' '));
+    }
+
+    return { lat, lng, name, address };
+  }
+
+  async function expandShortUrl(url) {
+    const proxies = [
+      u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+      u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+    ];
+    let lastErr;
+    for (const make of proxies) {
+      try {
+        const res = await fetch(make(url));
+        if (!res.ok) { lastErr = new Error('status ' + res.status); continue; }
+        const text = await res.text();
+        if (text && text.length > 200) return text;
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('All proxies failed');
+  }
+
+  function parseMapsHtml(html) {
+    let lat = null, lng = null, name = null;
+    const d = html.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (d) { lat = parseFloat(d[1]); lng = parseFloat(d[2]); }
+    // Place name appears as q=Name+Name in a link/URL inside the HTML.
+    // The & in ?q=...&pb=... gets encoded as &amp; in HTML attributes.
+    const q = html.match(/[?;](?:amp;)?q=([^&"'<>\\ ]+?)(?:&|"|'|<|>|\\)/);
+    if (q) {
+      const candidate = decodeURIComponent(q[1].replace(/\+/g, ' '));
+      if (candidate && candidate.toLowerCase() !== 'google maps') name = candidate;
+    }
+    if (!name) {
+      const t = html.match(/<title>([^<]+?)(?:\s*[-–]\s*Google Maps)?<\/title>/i);
+      if (t && t[1].trim().toLowerCase() !== 'google maps') name = t[1].trim();
+    }
+    return { lat, lng, name, address: null };
+  }
+
+  async function resolveMapsUrl(url) {
+    const isShort = /maps\.app\.goo\.gl|goo\.gl\/maps/i.test(url);
+    if (isShort) {
+      try {
+        const html = await expandShortUrl(url);
+        const fromHtml = parseMapsHtml(html);
+        if (fromHtml.lat !== null) return fromHtml;
+        if (fromHtml.name) {
+          const geo = await geocode(fromHtml.name);
+          return { lat: geo.lat, lng: geo.lng, name: fromHtml.name, address: geo.display };
+        }
+      } catch (e) { /* fall through to direct parse */ }
+    }
+    const parsed = parseMapsUrl(url);
+    // If we got lat/lng, we're done
+    if (parsed.lat !== null) return parsed;
+    // Otherwise try geocoding the name or address
+    const query = parsed.name || parsed.address;
+    if (query) {
+      const geo = await geocode(query);
+      return { lat: geo.lat, lng: geo.lng, name: parsed.name, address: parsed.address || geo.display };
+    }
+    throw new Error('Could not parse Maps link');
+  }
+
+  function updateLocStatus() {
+    if (userLocation) {
+      locStatus.textContent = '✅ Location set';
+    } else {
+      locStatus.textContent = 'No location set (radius ignored)';
+    }
+  }
+
+  function distanceFor(r) {
+    if (!userLocation || !r.lat) return null;
+    return distanceKm(userLocation, { lat: r.lat, lng: r.lng });
+  }
+
+  function inRange(r) {
+    if (!userLocation) return true;
+    if (!r.lat) return true; // no address = always in
+    return distanceFor(r) <= radiusKm;
+  }
+
+  function render() {
+    list.innerHTML = '';
+    if (restaurants.length === 0) {
+      list.innerHTML = '<li class="empty-list">Add some restaurants to get started</li>';
+    } else {
+      restaurants.forEach((r, i) => {
+        const li = document.createElement('li');
+        if (r.rejected) li.classList.add('rejected');
+        const d = distanceFor(r);
+        const inR = inRange(r);
+        if (!inR) li.classList.add('out-of-range');
+
+        const info = document.createElement('div');
+        info.className = 'li-info';
+        let meta = '';
+        if (r.address) {
+          const displayAddr = /^https?:\/\//i.test(r.address) ? '📍 Saved location' : r.address;
+          meta = escapeHtml(displayAddr);
+          if (d !== null) meta += ` · ${d.toFixed(1)} km${!inR ? ' (out of range)' : ''}`;
+        } else if (r.lat === undefined) {
+          meta = 'no address';
+        }
+        info.innerHTML = `<div class="name">${r.rejected ? '❌ ' : ''}${escapeHtml(r.name)}</div>` +
+                        (meta ? `<div class="meta">${meta}</div>` : '');
+
+        if (r.address && r.lat === undefined) {
+          const retry = document.createElement('button');
+          retry.className = 'retry';
+          retry.title = 'Retry resolving location';
+          retry.textContent = '↻';
+          retry.onclick = async () => {
+            retry.disabled = true;
+            retry.textContent = '…';
+            try {
+              const resolved = isMapsUrl(r.address)
+                ? await resolveMapsUrl(r.address)
+                : await geocode(r.address).then(g => ({ lat: g.lat, lng: g.lng, address: g.display }));
+              if (resolved.lat !== null && resolved.lat !== undefined) {
+                r.lat = resolved.lat;
+                r.lng = resolved.lng;
+                r.address = resolved.address || resolved.name || r.address;
+                save();
+              } else {
+                alert('Could not resolve — no coordinates found.');
+              }
+            } catch (e) {
+              alert('Retry failed: ' + e.message);
+            }
+            render();
+          };
+          li.appendChild(info);
+          li.appendChild(retry);
+        } else {
+          li.appendChild(info);
+        }
+
+        const del = document.createElement('button');
+        del.className = 'del';
+        del.textContent = '×';
+        del.onclick = () => { restaurants.splice(i, 1); save(); render(); };
+        li.appendChild(del);
+        list.appendChild(li);
+      });
+    }
+    const active = restaurants.filter(r => !r.rejected && inRange(r)).length;
+    listCount.textContent = `${restaurants.length} total · ${active} in play`;
+  }
+
+  async function addRestaurant() {
+    let name = input.value.trim();
+    const addrRaw = addrInput.value.trim();
+
+    // Allow adding with only a Maps link (no name typed yet)
+    if (!name && !isMapsUrl(addrRaw)) return;
+
+    let address = addrRaw;
+    let lat = null, lng = null;
+
+    if (addrRaw) {
+      addBtn.disabled = true;
+      addBtn.textContent = '...';
+      try {
+        if (isMapsUrl(addrRaw)) {
+          const resolved = await resolveMapsUrl(addrRaw);
+          lat = resolved.lat;
+          lng = resolved.lng;
+          if (!name && resolved.name) name = resolved.name;
+          address = resolved.address || resolved.name || 'Google Maps location';
+        } else {
+          const geo = await geocode(addrRaw);
+          lat = geo.lat;
+          lng = geo.lng;
+        }
+      } catch (e) {
+        if (/share\.google/i.test(addrRaw)) {
+          alert('share.google links require JavaScript to resolve. Open the link in Google Maps, tap Share → Copy link to get a maps.app.goo.gl link instead.');
+        } else {
+          alert('Could not resolve that location. Adding without coordinates.');
+        }
+      }
+      addBtn.disabled = false;
+      addBtn.textContent = 'Add';
+    }
+
+    if (!name) { return; }
+    if (restaurants.some(r => r.name.toLowerCase() === name.toLowerCase())) {
+      input.value = ''; addrInput.value = ''; return;
+    }
+
+    const entry = { name, rejected: false, address: address || null };
+    if (lat !== null) { entry.lat = lat; entry.lng = lng; }
+
+    restaurants.push(entry);
+    input.value = '';
+    addrInput.value = '';
+    save();
+    render();
+  }
+
+  function pick() {
+    const available = restaurants.filter(r => !r.rejected && inRange(r));
+    if (available.length === 0) {
+      if (restaurants.length === 0) {
+        result.textContent = 'Add some restaurants first!';
+      } else if (userLocation && restaurants.some(r => !r.rejected && !inRange(r))) {
+        result.textContent = 'Nothing in range. Try a bigger radius 📏';
+      } else {
+        result.textContent = 'She rejected all of them. Reset and try again 😅';
+      }
+      result.classList.add('empty');
+      wifeButtons.style.display = 'none';
+      currentPick = null;
+      return;
+    }
+    const choice = available[Math.floor(Math.random() * available.length)];
+    currentPick = choice;
+    const d = distanceFor(choice);
+    result.innerHTML = '🍴 ' + escapeHtml(choice.name) +
+      (d !== null ? `<small>${d.toFixed(1)} km away</small>` : '');
+    result.classList.remove('empty');
+    wifeButtons.style.display = 'flex';
+  }
+
+  addBtn.onclick = addRestaurant;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') addrInput.focus(); });
+  addrInput.addEventListener('keydown', e => { if (e.key === 'Enter') addRestaurant(); });
+  pickBtn.onclick = pick;
+
+  noBtn.onclick = () => {
+    if (!currentPick) return;
+    currentPick.rejected = true;
+    save();
+    render();
+    pick();
+  };
+
+  yesBtn.onclick = () => {
+    if (!currentPick) return;
+    result.innerHTML = '🎉 Going to ' + escapeHtml(currentPick.name) + '!';
+    wifeButtons.style.display = 'none';
+  };
+
+  document.getElementById('fixAllBtn').onclick = async () => {
+    const btn = document.getElementById('fixAllBtn');
+    const broken = restaurants.filter(r => r.address && r.lat === undefined);
+    if (!broken.length) { alert('Nothing to fix — all entries have coordinates.'); return; }
+    btn.disabled = true;
+    let fixed = 0, failed = 0;
+    for (const r of broken) {
+      btn.textContent = `Fixing ${fixed + failed + 1}/${broken.length}...`;
+      try {
+        const resolved = isMapsUrl(r.address)
+          ? await resolveMapsUrl(r.address)
+          : await geocode(r.address).then(g => ({ lat: g.lat, lng: g.lng, address: g.display }));
+        if (resolved.lat !== null && resolved.lat !== undefined) {
+          r.lat = resolved.lat;
+          r.lng = resolved.lng;
+          if (resolved.address) r.address = resolved.address;
+          fixed++;
+        } else {
+          failed++;
+        }
+      } catch (e) { failed++; }
+      await new Promise(r => setTimeout(r, 1000)); // rate-limit Nominatim
+    }
+    save();
+    render();
+    btn.disabled = false;
+    btn.textContent = 'Fix missing locations';
+    alert(`Fixed ${fixed}, failed ${failed}.`);
+  };
+
+  resetBtn.onclick = () => {
+    restaurants.forEach(r => r.rejected = false);
+    save();
+    render();
+    result.textContent = 'Rejections cleared — all restaurants back in play';
+    result.classList.add('empty');
+    wifeButtons.style.display = 'none';
+  };
+
+  locBtn.onclick = () => {
+    if (!navigator.geolocation) {
+      locStatus.textContent = 'Geolocation not supported';
+      return;
+    }
+    locStatus.textContent = 'Getting location...';
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        saveLoc();
+        updateLocStatus();
+        render();
+      },
+      err => {
+        locStatus.textContent = 'Location denied or unavailable';
+      }
+    );
+  };
+
+  radiusSlider.addEventListener('input', () => {
+    radiusKm = parseInt(radiusSlider.value, 10);
+    radiusValue.textContent = radiusKm + ' km';
+    localStorage.setItem(RADIUS_KEY, String(radiusKm));
+    render();
+  });
+
+  updateLocStatus();
+  render();
+</script>
+</body>
+</html>
